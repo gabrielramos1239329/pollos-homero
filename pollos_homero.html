@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Pollos Homero — La granja de los Homeros</title>
+  <style>
+    :root{
+      --bg:#fff8f0; --card:#ffffff; --accent:#ffb703; --muted:#7a5c3b;
+      --radius:18px; --shadow: 0 8px 24px rgba(0,0,0,0.08);
+      font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,var(--bg),#fffdf9);color:var(--muted);}
+    header{padding:48px 24px;text-align:center}
+    .title{font-size:clamp(26px,4.5vw,40px);margin:0 0 8px;color:#3b2f2f}
+    .subtitle{margin:0;color:#6b5042}
+    main{max-width:1100px;margin:28px auto;padding:0 20px 80px}
+    .controls{display:flex;gap:12px;justify-content:center;margin:20px 0}
+    .btn{background:var(--accent);border:none;padding:10px 16px;border-radius:12px;cursor:pointer;font-weight:600;box-shadow:var(--shadow);}
+    .btn.secondary{background:transparent;border:2px solid rgba(59,47,47,0.06)}
+
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px}
+    .card{background:var(--card);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:12px}
+    .avatar{font-size:56px;align-self:center}
+    .name{font-size:18px;font-weight:700;color:#3b2f2f;text-align:center}
+    .meta{text-align:center;color:#9a7f66;font-size:14px}
+    .traits{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+    .tag{background:#fff3df;padding:6px 10px;border-radius:999px;font-size:13px}
+
+    footer{text-align:center;padding:30px;color:#8b6f56}
+
+    /* Modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.35);display:none;align-items:center;justify-content:center;padding:20px}
+    .modal{background:var(--card);border-radius:16px;padding:22px;max-width:720px;width:100%;box-shadow:0 20px 40px rgba(0,0,0,0.18)}
+    .modal h3{margin-top:0}
+    .close{background:transparent;border:0;font-size:20px;cursor:pointer}
+
+    /* Cute little responsive tweaks */
+    @media (max-width:420px){.avatar{font-size:46px}.title{font-size:24px}}
+  </style>
+</head>
+<body>
+  <header>
+    <h1 class="title">Pollos Homero</h1>
+    <p class="subtitle">Un lugar donde varios pollos comparten el mismo nombre... y muchas aventuras.</p>
+  </header>
+
+  <main>
+    <div class="controls">
+      <button class="btn" onclick="showAll()">Conoce a todos los Homero</button>
+      <button class="btn secondary" onclick="shuffle()">Barajar perfiles</button>
+    </div>
+
+    <section class="grid" id="gallery">
+      <!-- Cards generadas desde JS -->
+    </section>
+
+    <template id="card-template">
+      <article class="card">
+        <div class="avatar">🐔</div>
+        <div class="name">Homero <span class="numero"></span></div>
+        <div class="meta">Edad: <span class="edad"></span> • Carácter: <span class="carac"></span></div>
+        <div class="traits"></div>
+        <div style="display:flex;gap:10px;justify-content:center;margin-top:10px">
+          <button class="btn" data-action="ver">Ver historia</button>
+          <button class="btn secondary" data-action="alimentar">Alimentar</button>
+        </div>
+      </article>
+    </template>
+
+  </main>
+
+  <div class="modal-backdrop" id="modal">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h3 id="modal-title">Homero</h3>
+        <button class="close" onclick="closeModal()">✕</button>
+      </div>
+      <p id="modal-body">Descripción...</p>
+      <p><strong>Gustos:</strong> <span id="modal-likes"></span></p>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button class="btn" onclick="closeModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <small>Creado con cariño por la Granja Homero 🐓 — Puedes editar los perfiles desde el botón <em>Barajar</em>.</small>
+  </footer>
+
+  <script>
+    // Datos iniciales: varios pollos con el mismo nombre "Homero" pero personalidades distintas
+    const homeros = [
+      {id:1,edad:'2 años',carac:'Curioso',likes:['Maíz','Tomar siestas al sol'],bio:'Homero I es el explorador oficial. Siempre encuentra los mejores rincones de la granja.'},
+      {id:2,edad:'1 año',carac:'Dormilón',likes:['Semillas','Cantar al amanecer'],bio:'Homero II prefiere la tranquilidad. Su especialidad es encontrar las camas más cómodas.'},
+      {id:3,edad:'6 meses',carac:'Travieso',likes:['Gusanos','Escabullirse entre cajas'],bio:'Homero III es pequeñito pero listo: le encanta jugar y esconder cosas.'},
+      {id:4,edad:'3 años',carac:'Protector',likes:['Orgullo de gallinero','Comerse sobras de fruta'],bio:'Homero IV vigila a los demás pollos y los acompaña en paseos.'},
+      {id:5,edad:'1.5 años',carac:'Artistico',likes:['Pintar en polvo','Baile matutino'],bio:'Homero V tiene un plumaje singular y un paso de baile propio.'}
+    ];
+
+    const gallery = document.getElementById('gallery');
+    const tpl = document.getElementById('card-template');
+
+    function render(list){
+      gallery.innerHTML='';
+      list.forEach(h => {
+        const node = tpl.content.cloneNode(true);
+        node.querySelector('.numero').textContent = h.id;
+        node.querySelector('.edad').textContent = h.edad;
+        node.querySelector('.carac').textContent = h.carac;
+        const traits = node.querySelector('.traits');
+        h.likes.forEach(l=>{const t=document.createElement('span');t.className='tag';t.textContent=l;traits.appendChild(t)});
+        node.querySelector('[data-action="ver"]').addEventListener('click',()=>openModal(h));
+        node.querySelector('[data-action="alimentar"]').addEventListener('click',()=>feed(h));
+        gallery.appendChild(node);
+      })
+    }
+
+    function openModal(h){
+      document.getElementById('modal-title').textContent = `Homero ${h.id} — ${h.carac}`;
+      document.getElementById('modal-body').textContent = h.bio;
+      document.getElementById('modal-likes').textContent = h.likes.join(', ');
+      document.getElementById('modal').style.display='flex';
+    }
+    function closeModal(){document.getElementById('modal').style.display='none'}
+
+    function feed(h){
+      alert(`¡Le diste de comer a Homero ${h.id}! Le encantó: ${h.likes[0]}.`);
+    }
+
+    function shuffle(){
+      for(let i=homeros.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[homeros[i],homeros[j]]=[homeros[j],homeros[i]]}
+      render(homeros);
+    }
+
+    function showAll(){render(homeros)}
+
+    // Render inicial
+    render(homeros);
+  </script>
+</body>
+</html>
